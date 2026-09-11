@@ -20,8 +20,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "node --env-file-if-exists=.env --import=tsx src/index.ts",
-    "once": "node --env-file-if-exists=.env --import=tsx src/once.ts",
+    "start": "node --dns-result-order=ipv4first --env-file-if-exists=.env --import=tsx src/index.ts",
+    "once": "node --dns-result-order=ipv4first --env-file-if-exists=.env --import=tsx src/once.ts",
     "typecheck": "tsc --noEmit"
   }
 }
