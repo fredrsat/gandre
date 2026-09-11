@@ -142,36 +142,37 @@ export async function importMcpSetup(source: string): Promise<McpImportResult> {
   const parts = url.pathname.split('/').filter(Boolean);
   if (parts.length < 2) throw new Error('URL-en må peke på et repo: github.com/eier/repo');
   const [owner, repo] = parts;
-  let branch: string | null = null;
+  let urlBranch: string | null = null;
   let subpath = '';
   if (parts[2] === 'tree' || parts[2] === 'blob') {
-    branch = parts[3] ?? null;
+    urlBranch = parts[3] ?? null;
     subpath = parts.slice(4).join('/');
   }
-  if (!branch) {
-    const repoMeta = await fetchJson(`https://api.github.com/repos/${owner}/${repo}`);
-    branch = (repoMeta?.default_branch as string | undefined) ?? 'main';
-  }
+  // Prøver grenene direkte mot raw.githubusercontent i stedet for å spørre
+  // api.github.com om default-gren — én vertsavhengighet mindre
+  const branches = urlBranch ? [urlBranch] : ['main', 'master'];
 
-  const raw = (p: string) =>
+  const raw = (branch: string, p: string) =>
     `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${p}`.replace(/\/+$/, '');
   const inDir = (f: string) => (subpath ? `${subpath}/${f}` : f);
 
-  // 1) README i undermappen, så i rot-repoet — mest presise kilde (inkluderer args/env)
-  for (const readmePath of [inDir('README.md'), 'README.md']) {
-    const readme = await fetchText(raw(readmePath));
-    if (!readme) continue;
-    const candidate = findServerInReadme(readme);
-    if (candidate) {
-      return toResult(candidate, subpath.split('/').pop() || repo, `README i github.com/${owner}/${repo}`);
+  for (const branch of branches) {
+    // 1) README i undermappen, så i rot-repoet — mest presise kilde (inkluderer args/env)
+    for (const readmePath of [inDir('README.md'), 'README.md']) {
+      const readme = await fetchText(raw(branch, readmePath));
+      if (!readme) continue;
+      const candidate = findServerInReadme(readme);
+      if (candidate) {
+        return toResult(candidate, subpath.split('/').pop() || repo, `README i github.com/${owner}/${repo}`);
+      }
     }
-  }
 
-  // 2) package.json → publisert npm-pakke kjørt med npx
-  const pkg = await fetchJson(raw(inDir('package.json')));
-  if (pkg && typeof pkg.name === 'string') {
-    const result = await npmPackageResult(pkg.name);
-    if (result) return result;
+    // 2) package.json → publisert npm-pakke kjørt med npx
+    const pkg = await fetchJson(raw(branch, inDir('package.json')));
+    if (pkg && typeof pkg.name === 'string') {
+      const result = await npmPackageResult(pkg.name);
+      if (result) return result;
+    }
   }
 
   throw new Error(
