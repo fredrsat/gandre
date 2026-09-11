@@ -12,7 +12,8 @@ pids() { pgrep -f "tsx src/index.ts" || true; }
 
 health() {
   local code
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://localhost:$PORT/healthz" 2>/dev/null || echo 000)"
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://localhost:$PORT/healthz" 2>/dev/null || true)"
+  code="${code:-000}"
   case "$code" in
     200) echo "✓ svarer på http://localhost:$PORT"; return 0 ;;
     401) echo "✓ oppe på http://localhost:$PORT (basic auth aktiv)"; return 0 ;;
