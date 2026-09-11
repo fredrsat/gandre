@@ -1,0 +1,102 @@
+#!/bin/bash
+# gandrectl — styring av gandre-daemonen uten å huske launchctl-kommandoer
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LABEL="no.gandre.server"
+PLIST_SRC="$DIR/launchd/no.gandre.daemon.plist"
+PLIST_DST="/Library/LaunchDaemons/no.gandre.daemon.plist"
+PORT="$(grep -s '^GANDRE_PORT=' "$DIR/.env" | cut -d= -f2 | tr -d ' ')"
+PORT="${PORT:-3040}"
+
+pids() { pgrep -f "tsx src/index.ts" || true; }
+
+health() {
+  if curl -sf --max-time 3 "http://localhost:$PORT/healthz" >/dev/null 2>&1; then
+    echo "✓ svarer på http://localhost:$PORT"
+  else
+    echo "✗ svarer IKKE på port $PORT"
+    return 1
+  fi
+}
+
+case "${1:-help}" in
+  install)
+    echo "Installerer daemon ($PLIST_DST)…"
+    sudo cp "$PLIST_SRC" "$PLIST_DST"
+    sudo chown root:wheel "$PLIST_DST"
+    sudo chmod 644 "$PLIST_DST"
+    sudo launchctl bootstrap system "$PLIST_DST"
+    sleep 3
+    health && echo "Installert og i drift."
+    ;;
+
+  start)
+    if sudo launchctl print "system/$LABEL" >/dev/null 2>&1; then
+      sudo launchctl kickstart "system/$LABEL"
+    else
+      sudo launchctl bootstrap system "$PLIST_DST"
+    fi
+    sleep 3
+    health
+    ;;
+
+  stop)
+    echo "Stopper og laster ut daemonen…"
+    sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
+    pkill -f "tsx src/index.ts" 2>/dev/null || true
+    sleep 1
+    [ -z "$(pids)" ] && echo "Stoppet." || { echo "Prosesser henger igjen:"; pgrep -fl "tsx src/index.ts"; }
+    ;;
+
+  restart)
+    if sudo launchctl print "system/$LABEL" >/dev/null 2>&1; then
+      sudo launchctl kickstart -k "system/$LABEL"
+    else
+      # Ikke lastet som daemon — drep prosessen; KeepAlive (agent-variant) eller ingenting
+      pkill -f "tsx src/index.ts" 2>/dev/null || true
+    fi
+    sleep 3
+    health
+    ;;
+
+  status)
+    echo "Versjon:  $(git -C "$DIR" log --oneline -1 2>/dev/null || echo 'ukjent')"
+    P="$(pids)"
+    if [ -n "$P" ]; then
+      echo "Prosess:"
+      ps -o pid,etime,command -p $(echo "$P" | tr '\n' ',' | sed 's/,$//') | tail -n +2 | sed 's/^/  /'
+    else
+      echo "Prosess:  kjører ikke"
+    fi
+    health || true
+    ;;
+
+  logs)
+    exec tail -f "$DIR/data/logs/out.log" "$DIR/data/logs/err.log"
+    ;;
+
+  update)
+    echo "Oppdaterer fra GitHub…"
+    git -C "$DIR" pull
+    (cd "$DIR" && npm install)
+    "$0" restart
+    ;;
+
+  *)
+    cat <<EOF
+Bruk: gandrectl <kommando>
+
+  install   Installer og start daemonen (første gang, krever sudo)
+  start     Start tjenesten
+  stop      Stopp og last ut daemonen
+  restart   Restart (f.eks. etter kodeendring)
+  status    Versjon, prosess og helsesjekk
+  logs      Følg loggene (Ctrl-C for å avslutte)
+  update    git pull + npm install + restart
+
+Tips: legg til i PATH med
+  sudo ln -sf "$DIR/gandrectl" /usr/local/bin/gandrectl
+EOF
+    ;;
+esac

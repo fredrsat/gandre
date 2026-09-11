@@ -75,22 +75,30 @@ stiene og `UserName` i plist-filen før du fortsetter.
 
 ### 6a. LaunchDaemon (headless — anbefalt for server)
 
+Alt styres med `gandrectl`-skriptet i repoet:
+
 ```sh
 # Fjern evt. LaunchAgent-variant fra tidligere forsøk
 launchctl bootout gui/$(id -u)/no.gandre.server 2>/dev/null
 rm -f ~/Library/LaunchAgents/no.gandre.server.plist
 
-sudo cp launchd/no.gandre.daemon.plist /Library/LaunchDaemons/
-sudo chown root:wheel /Library/LaunchDaemons/no.gandre.daemon.plist
-sudo chmod 644 /Library/LaunchDaemons/no.gandre.daemon.plist
-sudo launchctl bootstrap system /Library/LaunchDaemons/no.gandre.daemon.plist
+./gandrectl install       # kopierer plist, starter daemonen, sjekker helse
 
-curl http://localhost:3040/healthz     # skal svare «ok»
+# Valgfritt: gjør kommandoen tilgjengelig overalt
+sudo ln -sf "$PWD/gandrectl" /usr/local/bin/gandrectl
+```
+
+Daglig bruk:
+
+```sh
+gandrectl status     # versjon, prosess og helsesjekk
+gandrectl restart    # etter kodeendring
+gandrectl logs       # følg loggene
+gandrectl update     # git pull + npm install + restart
+gandrectl stop       # stopp og last ut
 ```
 
 Tjenesten kjører som din bruker (`UserName` i plisten), ikke root.
-Restart: `sudo launchctl kickstart -k system/no.gandre.server`
-Stopp: `sudo launchctl bootout system/no.gandre.server`
 
 ### 6b. LaunchAgent (krever innlogget bruker)
 
@@ -116,15 +124,8 @@ sudo pmset -a sleep 0 displaysleep 0 autorestart 1
 ## 8. Oppdatere til ny versjon
 
 ```sh
-cd ~/Code/gandre
-git pull
-npm install
-sudo launchctl kickstart -k system/no.gandre.server    # daemon-variant (6a)
-# launchctl kickstart -k gui/$(id -u)/no.gandre.server # agent-variant (6b)
+gandrectl update      # git pull + npm install + restart, alt i ett
 ```
-
-(Alternativt: `pkill -f "tsx src/index.ts"` — KeepAlive starter tjenesten på nytt
-med ny kode, uansett variant.)
 
 ## Feilsøking
 
