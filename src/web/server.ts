@@ -47,7 +47,14 @@ function readSchedule(form: FormData): { cron: string | null; error?: string } {
   let schedule: Schedule;
   switch (str('schedule_type')) {
     case 'hourly': schedule = { type: 'hourly', minute: clamp(Number(str('sched_minute')), 0, 59) }; break;
-    case 'daily': schedule = { type: 'daily', time }; break;
+    case 'daily': {
+      const scope = str('sched_scope');
+      schedule = {
+        type: 'daily', time,
+        days: scope === 'weekdays' || scope === 'weekend' ? scope : 'all',
+      };
+      break;
+    }
     case 'weekly': {
       const days = form.getAll('sched_days').map(Number).filter((d) => d >= 0 && d <= 6);
       if (days.length === 0) return { cron: null, error: 'Velg minst én ukedag for ukentlig kjøring.' };

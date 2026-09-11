@@ -1,10 +1,12 @@
 // Oversetter mellom den grafiske tidsvelgeren i UI-et og cron-uttrykk.
 // Enkle mønstre vises grafisk; alt annet faller tilbake til «egendefinert».
 
+export type DayScope = 'all' | 'weekdays' | 'weekend';
+
 export type Schedule =
   | { type: 'manual' }
   | { type: 'hourly'; minute: number }
-  | { type: 'daily'; time: string }                  // 'HH:MM'
+  | { type: 'daily'; time: string; days: DayScope }  // 'HH:MM'
   | { type: 'weekly'; days: number[]; time: string } // 0 = søndag … 6 = lørdag
   | { type: 'monthly'; dom: number; time: string }
   | { type: 'custom'; cron: string };
@@ -19,7 +21,11 @@ export function buildCron(s: Schedule): string | null {
   switch (s.type) {
     case 'manual': return null;
     case 'hourly': return `${s.minute} * * * *`;
-    case 'daily': { const [h, m] = splitTime(s.time); return `${m} ${h} * * *`; }
+    case 'daily': {
+      const [h, m] = splitTime(s.time);
+      const dow = s.days === 'weekdays' ? '1-5' : s.days === 'weekend' ? '6,0' : '*';
+      return `${m} ${h} * * ${dow}`;
+    }
     case 'weekly': { const [h, m] = splitTime(s.time); return `${m} ${h} * * ${[...s.days].sort().join(',')}`; }
     case 'monthly': { const [h, m] = splitTime(s.time); return `${m} ${h} ${s.dom} * *`; }
     case 'custom': return s.cron;
@@ -31,7 +37,11 @@ export function parseCron(cron: string | null): Schedule {
   let m = cron.match(/^(\d{1,2}) \* \* \* \*$/);
   if (m) return { type: 'hourly', minute: Number(m[1]) };
   m = cron.match(/^(\d{1,2}) (\d{1,2}) \* \* \*$/);
-  if (m) return { type: 'daily', time: `${pad(Number(m[2]))}:${pad(Number(m[1]))}` };
+  if (m) return { type: 'daily', time: `${pad(Number(m[2]))}:${pad(Number(m[1]))}`, days: 'all' };
+  m = cron.match(/^(\d{1,2}) (\d{1,2}) \* \* 1-5$/);
+  if (m) return { type: 'daily', time: `${pad(Number(m[2]))}:${pad(Number(m[1]))}`, days: 'weekdays' };
+  m = cron.match(/^(\d{1,2}) (\d{1,2}) \* \* (?:6,0|0,6)$/);
+  if (m) return { type: 'daily', time: `${pad(Number(m[2]))}:${pad(Number(m[1]))}`, days: 'weekend' };
   m = cron.match(/^(\d{1,2}) (\d{1,2}) \* \* ([\d,]+)$/);
   if (m) return {
     type: 'weekly',
@@ -55,7 +65,10 @@ export function describeCron(cron: string | null): string {
   switch (s.type) {
     case 'manual': return 'manuell';
     case 'hourly': return `hver time (:${pad(s.minute)})`;
-    case 'daily': return `daglig kl. ${s.time}`;
+    case 'daily':
+      return s.days === 'weekdays' ? `hverdager kl. ${s.time}`
+        : s.days === 'weekend' ? `helg kl. ${s.time}`
+        : `daglig kl. ${s.time}`;
     case 'weekly': {
       const names = s.days.map((d) => WEEKDAYS.find((w) => w.value === d)?.label ?? d).join(', ');
       return `${names} kl. ${s.time}`;

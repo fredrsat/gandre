@@ -157,6 +157,13 @@ function scheduleFields(cron: string | null): Html {
     <span data-sched="monthly">den
       <input type="number" name="sched_dom" min="1" max="31" value="${s.type === 'monthly' ? s.dom : 1}">.
     </span>
+    <span data-sched="daily">
+      <select name="sched_scope">
+        <option value="all" ${s.type === 'daily' && s.days === 'all' ? 'selected' : ''}>alle dager</option>
+        <option value="weekdays" ${s.type === 'daily' && s.days === 'weekdays' ? 'selected' : ''}>hverdager (man–fre)</option>
+        <option value="weekend" ${s.type === 'daily' && s.days === 'weekend' ? 'selected' : ''}>helg (lør–søn)</option>
+      </select>
+    </span>
     <span data-sched="daily weekly monthly">kl.
       <input type="time" name="sched_time" value="${time}">
     </span>
