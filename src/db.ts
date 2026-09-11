@@ -257,6 +257,33 @@ export function lastRun(agentId: string): Run | undefined {
   ).get(agentId) as Run | undefined;
 }
 
+export interface AgentStats {
+  runs: number;
+  success: number;
+  error: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export function agentStats(agentId: string, sinceIso?: string): AgentStats {
+  const row = db.prepare(
+    `SELECT
+       COUNT(*) AS runs,
+       SUM(status = 'success') AS success,
+       SUM(status = 'error') AS error,
+       COALESCE(SUM(json_extract(usage_json, '$.inputTokens')), 0) AS inputTokens,
+       COALESCE(SUM(json_extract(usage_json, '$.outputTokens')), 0) AS outputTokens
+     FROM runs WHERE agent_id = ? AND started_at >= ?`
+  ).get(agentId, sinceIso ?? '') as AgentStats;
+  return {
+    runs: row.runs ?? 0,
+    success: row.success ?? 0,
+    error: row.error ?? 0,
+    inputTokens: row.inputTokens ?? 0,
+    outputTokens: row.outputTokens ?? 0,
+  };
+}
+
 export function markInterruptedRuns(): void {
   db.prepare(`UPDATE runs SET status='interrupted', finished_at=? WHERE status='running'`).run(now());
 }

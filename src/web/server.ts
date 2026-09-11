@@ -13,6 +13,10 @@ import { reloadScheduler, nextRun, validateCron } from '../scheduler.js';
 import { parseMcpConfig, testMcpServer } from '../mcp.js';
 import { importMcpSetup } from '../mcp-import.js';
 import { readMemory } from '../tools/fs-tools.js';
+import { agentStats } from '../db.js';
+import { estimateCostUsd, formatCostUsd } from '../pricing.js';
+import { html } from 'hono/html';
+import { agentStatsBox, type StatsRow } from './pages.js';
 import { buildCron, type Schedule } from '../cron-ui.js';
 import {
   agentListPage, agentFormPage, agentDetailRuns, runListPage, runDetailPage,
@@ -129,9 +133,27 @@ app.get('/agents/:id', (c) => {
   const agent = getAgent(c.req.param('id'));
   if (!agent) return c.notFound();
   const runs = listRuns(agent.id, 20, 0);
+
+  const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const toRow = (label: string, s: ReturnType<typeof agentStats>): StatsRow => ({
+    label, runs: s.runs, success: s.success, error: s.error,
+    inputTokens: s.inputTokens, outputTokens: s.outputTokens,
+    cost: formatCostUsd(estimateCostUsd(agent.provider, agent.model, s.inputTokens, s.outputTokens)),
+  });
+  const rows = [
+    toRow('Siste 30 dager', agentStats(agent.id, since30)),
+    toRow('Totalt', agentStats(agent.id)),
+  ];
+  const costNote =
+    agent.provider === 'ollama'
+      ? 'Lokal modell — ingen API-kostnad.'
+      : agent.provider === 'openrouter'
+        ? 'OpenRouter-priser varierer per modell — kostnad estimeres ikke.'
+        : 'Estimert med gjeldende listepris for modellen; kjøringer eldre enn 90 dager er slettet fra grunnlaget.';
+
   return c.html(agentFormPage(
     agent, listMcpServers(), undefined,
-    agentDetailRuns(agent, runs, readMemory(agent.workdir))
+    html`${agentStatsBox(rows, costNote)}${agentDetailRuns(agent, runs, readMemory(agent.workdir))}`
   ));
 });
 

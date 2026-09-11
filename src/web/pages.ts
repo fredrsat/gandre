@@ -279,6 +279,35 @@ export function agentFormPage(
   );
 }
 
+export interface StatsRow {
+  label: string;
+  runs: number;
+  success: number;
+  error: number;
+  inputTokens: number;
+  outputTokens: number;
+  cost: string; // ferdig formatert
+}
+
+const fmtNum = (n: number) => n.toLocaleString('no-NO');
+
+export function agentStatsBox(rows: StatsRow[], costNote: string): Html {
+  return html`<h2 style="margin-top:2rem">Statistikk</h2>
+  <table>
+    <tr><th></th><th>Kjøringer</th><th>Suksess</th><th>Feil</th><th>Tokens inn</th><th>Tokens ut</th><th>Est. kost</th></tr>
+    ${rows.map((r) => html`<tr>
+      <td class="meta">${r.label}</td>
+      <td>${fmtNum(r.runs)}</td>
+      <td>${fmtNum(r.success)}</td>
+      <td>${r.error > 0 ? html`<span class="badge error">${fmtNum(r.error)}</span>` : '0'}</td>
+      <td class="meta">${fmtNum(r.inputTokens)}</td>
+      <td class="meta">${fmtNum(r.outputTokens)}</td>
+      <td>${r.cost}</td>
+    </tr>`)}
+  </table>
+  <p class="hint">${costNote}</p>`;
+}
+
 export function agentDetailRuns(agent: Agent, runs: Run[], memory: string): Html {
   return html`<h2 style="margin-top:2rem">Minne</h2>
   ${memory
