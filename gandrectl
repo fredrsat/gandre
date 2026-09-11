@@ -11,12 +11,24 @@ PORT="${PORT:-3040}"
 pids() { pgrep -f "tsx src/index.ts" || true; }
 
 health() {
-  if curl -sf --max-time 3 "http://localhost:$PORT/healthz" >/dev/null 2>&1; then
-    echo "✓ svarer på http://localhost:$PORT"
-  else
-    echo "✗ svarer IKKE på port $PORT"
-    return 1
-  fi
+  local code
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://localhost:$PORT/healthz" 2>/dev/null || echo 000)"
+  case "$code" in
+    200) echo "✓ svarer på http://localhost:$PORT"; return 0 ;;
+    401) echo "✓ oppe på http://localhost:$PORT (basic auth aktiv)"; return 0 ;;
+    000) echo "✗ svarer IKKE på port $PORT"; return 1 ;;
+    *)   echo "⚠ svarer med HTTP $code på port $PORT"; return 0 ;;
+  esac
+}
+
+# Venter inntil 20 s på at tjenesten kommer opp (npm + tsx bruker noen sekunder)
+wait_health() {
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if health >/dev/null 2>&1; then health; return 0; fi
+    sleep 2
+  done
+  health
 }
 
 case "${1:-help}" in
@@ -69,8 +81,8 @@ PLIST
     sudo chown root:wheel "$PLIST_DST"
     sudo chmod 644 "$PLIST_DST"
     sudo launchctl bootstrap system "$PLIST_DST"
-    sleep 3
-    if health; then
+
+    if wait_health; then
       echo "Installert og i drift."
     else
       echo "Startet ikke — siste linjer fra err.log:"
@@ -85,8 +97,8 @@ PLIST
     else
       sudo launchctl bootstrap system "$PLIST_DST"
     fi
-    sleep 3
-    health
+
+    wait_health
     ;;
 
   stop)
@@ -104,8 +116,8 @@ PLIST
       # Ikke lastet som daemon — drep prosessen; KeepAlive (agent-variant) eller ingenting
       pkill -f "tsx src/index.ts" 2>/dev/null || true
     fi
-    sleep 3
-    health
+
+    wait_health
     ;;
 
   status)

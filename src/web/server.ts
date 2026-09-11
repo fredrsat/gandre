@@ -21,11 +21,12 @@ import {
 
 const app = new Hono();
 
+// Registrert før auth-middlewaren: overvåking skal nå helsesjekken uten passord
+app.get('/healthz', (c) => c.text('ok'));
+
 if (config.authUser && config.authPass) {
   app.use('*', basicAuth({ username: config.authUser, password: config.authPass }));
 }
-
-app.get('/healthz', (c) => c.text('ok'));
 
 app.get('/', (c) => {
   const rows = listAgents().map((agent) => ({
