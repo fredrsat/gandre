@@ -63,7 +63,13 @@ export async function testMcpServer(server: McpServer, timeoutMs = 20_000): Prom
     ]);
     return result;
   } catch (err) {
-    return { ok: false, tools: [], error: err instanceof Error ? err.message : String(err) };
+    let message = err instanceof Error ? err.message : String(err);
+    if (message.includes('closed client')) {
+      message =
+        'Serverprosessen døde rett etter start — sjekk at stien i konfigurasjonen stemmer ' +
+        'og at avhengigheter er installert (npm install i servermappen). Detaljer i err.log.';
+    }
+    return { ok: false, tools: [], error: message };
   } finally {
     if (client) await (client as MCPClient).close().catch(() => {});
   }
