@@ -8,7 +8,8 @@ export interface McpImportResult {
   note: string;   // hva som ble funnet / hva brukeren må fylle inn
 }
 
-const FETCH_OPTS = { signal: AbortSignal.timeout(10_000), headers: { 'User-Agent': 'gandre' } };
+// NB: må lages per kall — AbortSignal.timeout() fyrer én gang og forblir avbrutt
+const fetchOpts = () => ({ signal: AbortSignal.timeout(10_000), headers: { 'User-Agent': 'gandre' } });
 
 // null = finnes ikke (404 o.l.). Nettverksfeil kaster — det skal gi en tydelig
 // feilmelding til brukeren, ikke forveksles med «fant ingen konfigurasjon».
@@ -17,7 +18,7 @@ async function fetchText(url: string): Promise<string | null> {
   // To forsøk: forbigående nettverksfeil (f.eks. en død keep-alive-tilkobling) skal ikke velte importen
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const res = await fetch(url, FETCH_OPTS);
+      const res = await fetch(url, fetchOpts());
       return res.ok ? await res.text() : null;
     } catch (err) {
       lastErr = err;
