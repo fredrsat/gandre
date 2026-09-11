@@ -8,11 +8,16 @@ Fra null til kjørende tjeneste. Alt gjøres i Terminal på maskinen som skal v�
 # Homebrew (hopp over hvis installert)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Node 22+ og GitHub CLI
-brew install node gh
+# Node 22+
+brew install node
+```
 
-# Logg inn på GitHub (repoet er privat)
-gh auth login
+Repoet er privat og hentes over SSH — kopier den eksisterende GitHub-nøkkelen til
+maskinen (eller legg til en ny på github.com → Settings → SSH keys), og sjekk at den
+virker:
+
+```sh
+ssh -T git@github.com     # skal svare «Hi fredrsat! …»
 ```
 
 ## 2. Ollama — valgfritt, for lokale modeller
@@ -27,7 +32,7 @@ ollama pull qwen3.5:9b              # en modell som kan bruke verktøy
 
 ```sh
 mkdir -p ~/Code && cd ~/Code
-gh repo clone fredrsat/gandre
+git clone git@github.com:fredrsat/gandre.git
 cd gandre
 npm install
 ```
