@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.52",
+    "@ai-sdk/mcp": "^2.0.48",
+    "@hono/node-server": "^2.1.1",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "ai": "^7.0.97",
+    "better-sqlite3": "^13.0.3",
+    "croner": "^10.0.1",
+    "hono": "^4.13.7",
+    "ollama-ai-provider-v2": "^4.0.1",
+    "zod": "^4.6.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.20.2",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --env-file-if-exists=.env --import=tsx src/index.ts",
+    "once": "node --env-file-if-exists=.env --import=tsx src/once.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}
