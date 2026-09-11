@@ -100,6 +100,10 @@ function toResult(candidate: StdioCandidate, fallbackName: string, source: strin
   };
   const missing = envPlaceholders(candidate.env);
   const notes = [`Oppsett hentet fra ${source}.`];
+  const placeholderArgs = candidate.args.filter((a) => /\/path\/to\/|\/sti\/|<[^>]+>/i.test(a));
+  if (placeholderArgs.length > 0) {
+    notes.push(`⚠ VIKTIG: bytt plassholderen ${placeholderArgs.map((a) => `«${a}»`).join(', ')} til ekte sti på denne maskinen før du lagrer.`);
+  }
   if (missing.length > 0) notes.push(`Fyll inn verdier for env: ${missing.join(', ')}.`);
   if (!['npx', 'uvx', 'docker', 'node', 'python', 'python3'].includes(candidate.command)) {
     notes.push(`Kommandoen «${candidate.command}» må finnes på serveren.`);
