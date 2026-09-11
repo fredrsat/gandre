@@ -17,8 +17,9 @@ export async function notifyRunFinished(
     title: ok ? `✓ ${agent.name}` : `✗ ${agent.name} feilet`,
     priority: ok ? 'default' : 'high',
     tags: ok ? 'white_check_mark' : 'rotating_light',
-    click: `${config.publicUrl}/runs/${runId}`,
   });
+  // Klikk-lenke kun når det finnes en adresse mobilen faktisk kan nå
+  if (config.publicUrl) params.set('click', `${config.publicUrl}/runs/${runId}`);
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   try {

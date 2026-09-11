@@ -13,7 +13,8 @@ export const config = {
   dataDir: path.resolve(root, env('GANDRE_DATA_DIR', './data')!),
   port: Number(env('GANDRE_PORT', '3040')),
   bind: env('GANDRE_BIND', '0.0.0.0')!,
-  publicUrl: env('GANDRE_PUBLIC_URL', `http://localhost:${env('GANDRE_PORT', '3040')}`)!,
+  // Ingen default: en lenke mobilen ikke kan åpne er verre enn ingen lenke
+  publicUrl: env('GANDRE_PUBLIC_URL'),
   anthropicApiKey: env('ANTHROPIC_API_KEY'),
   openrouterApiKey: env('OPENROUTER_API_KEY'),
   ollamaBaseUrl: env('OLLAMA_BASE_URL', 'http://127.0.0.1:11434/api')!,
