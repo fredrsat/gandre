@@ -41,8 +41,10 @@ npm install
 
 ```sh
 cp .env.example .env
-open -e .env
+nano .env          # Ctrl-O lagrer, Ctrl-X avslutter
 ```
+
+(`nano` fungerer også over SSH — GUI-editorer via `open` gjør ikke det.)
 
 Fyll inn minst:
 
