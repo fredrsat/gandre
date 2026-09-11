@@ -64,30 +64,53 @@ npm run start
 Åpne http://localhost:3040 — opprett en agent og trykk «Kjør nå». Stopp med Ctrl-C når
 det virker.
 
-## 6. Installer som tjeneste (starter selv, restarter ved krasj)
+## 6. Installer som tjeneste
 
-**Kjører du som en annen bruker enn `fredrsat`, eller klonet til en annen sti:** åpne
-`launchd/no.gandre.server.plist` og rett de tre stiene (`WorkingDirectory` og de to
-loggstiene) før du fortsetter.
+**På en headless server: bruk LaunchDaemon-varianten (6a).** Den starter ved boot uten at
+noen er innlogget, og kan styres helt over SSH. LaunchAgent-varianten (6b) passer bare på
+en maskin der brukeren alltid er innlogget grafisk.
+
+**Kjører du som en annen bruker enn `fredrsat`, eller klonet til en annen sti:** rett
+stiene og `UserName` i plist-filen før du fortsetter.
+
+### 6a. LaunchDaemon (headless — anbefalt for server)
+
+```sh
+# Fjern evt. LaunchAgent-variant fra tidligere forsøk
+launchctl bootout gui/$(id -u)/no.gandre.server 2>/dev/null
+rm -f ~/Library/LaunchAgents/no.gandre.server.plist
+
+sudo cp launchd/no.gandre.daemon.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/no.gandre.daemon.plist
+sudo chmod 644 /Library/LaunchDaemons/no.gandre.daemon.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/no.gandre.daemon.plist
+
+curl http://localhost:3040/healthz     # skal svare «ok»
+```
+
+Tjenesten kjører som din bruker (`UserName` i plisten), ikke root.
+Restart: `sudo launchctl kickstart -k system/no.gandre.server`
+Stopp: `sudo launchctl bootout system/no.gandre.server`
+
+### 6b. LaunchAgent (krever innlogget bruker)
 
 ```sh
 cp launchd/no.gandre.server.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/no.gandre.server.plist
-
-# Sjekk at den kjører
-curl http://localhost:3040/healthz     # skal svare «ok»
 ```
 
-Logger: `data/logs/out.log` og `data/logs/err.log`.
-Stopp/start: `launchctl bootout gui/$(id -u)/no.gandre.server` og `bootstrap` igjen.
+Logger for begge varianter: `data/logs/out.log` og `data/logs/err.log`.
 
 ## 7. Serverinnstillinger på en headless Mac mini
 
-- **Automatisk innlogging**: Systeminnstillinger → Brukere og grupper → Logg inn
-  automatisk. (En LaunchAgent kjører bare mens brukeren er innlogget.)
-- **Hindre søvn**: Systeminnstillinger → Energi → skru av «Sett harddisker i dvale» /
-  aktiver «Start automatisk etter strømbrudd», og sett maskinen til aldri å sove.
-  Cron-tidspunkter som passerer mens maskinen sover, kjøres ikke i etterkant.
+```sh
+# Aldri søvn + automatisk omstart etter strømbrudd/krasj
+sudo pmset -a sleep 0 displaysleep 0 autorestart 1
+```
+
+- **FileVault må være av** (eller vent-på-passord ved boot deaktivert) — ellers står
+  maskinen på passordskjermen etter strømbrudd og ingenting starter.
+- Cron-tidspunkter som passerer mens maskinen er av, kjøres ikke i etterkant.
 - **Aldri port-forward** UI-et ut på internett — bruk LAN eller Tailscale.
 
 ## 8. Oppdatere til ny versjon
@@ -96,8 +119,12 @@ Stopp/start: `launchctl bootout gui/$(id -u)/no.gandre.server` og `bootstrap` ig
 cd ~/Code/gandre
 git pull
 npm install
-launchctl kickstart -k gui/$(id -u)/no.gandre.server   # restarter tjenesten
+sudo launchctl kickstart -k system/no.gandre.server    # daemon-variant (6a)
+# launchctl kickstart -k gui/$(id -u)/no.gandre.server # agent-variant (6b)
 ```
+
+(Alternativt: `pkill -f "tsx src/index.ts"` — KeepAlive starter tjenesten på nytt
+med ny kode, uansett variant.)
 
 ## Feilsøking
 
