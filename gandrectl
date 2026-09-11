@@ -23,7 +23,7 @@ case "${1:-help}" in
   install)
     NPM_BIN="$(command -v npm)"
     RUN_USER="$(whoami)"
-    echo "Genererer plist for bruker $RUN_USER, repo $DIR, npm $NPM_BIN…"
+    echo "Genererer plist for bruker $RUN_USER, repo $DIR, npm ${NPM_BIN}..."
     mkdir -p "$DIR/data/logs"
     TMP="$(mktemp)"
     cat > "$TMP" <<PLIST
@@ -62,7 +62,7 @@ case "${1:-help}" in
 </plist>
 PLIST
     plutil -lint "$TMP" >/dev/null
-    echo "Installerer daemon ($PLIST_DST)…"
+    echo "Installerer daemon ($PLIST_DST)..."
     sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
     sudo cp "$TMP" "$PLIST_DST"
     rm -f "$TMP"
@@ -90,7 +90,7 @@ PLIST
     ;;
 
   stop)
-    echo "Stopper og laster ut daemonen…"
+    echo "Stopper og laster ut daemonen..."
     sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
     pkill -f "tsx src/index.ts" 2>/dev/null || true
     sleep 1
@@ -125,7 +125,7 @@ PLIST
     ;;
 
   update)
-    echo "Oppdaterer fra GitHub…"
+    echo "Oppdaterer fra GitHub..."
     git -C "$DIR" pull
     (cd "$DIR" && npm install)
     "$0" restart
