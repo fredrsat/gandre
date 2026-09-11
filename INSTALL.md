@@ -70,12 +70,10 @@ det virker.
 noen er innlogget, og kan styres helt over SSH. LaunchAgent-varianten (6b) passer bare på
 en maskin der brukeren alltid er innlogget grafisk.
 
-**Kjører du som en annen bruker enn `fredrsat`, eller klonet til en annen sti:** rett
-stiene og `UserName` i plist-filen før du fortsetter.
-
 ### 6a. LaunchDaemon (headless — anbefalt for server)
 
-Alt styres med `gandrectl`-skriptet i repoet:
+Alt styres med `gandrectl`-skriptet i repoet. `install` genererer plisten automatisk
+med riktig bruker, hjemmemappe, repo-sti og npm-sti — ingenting å redigere for hånd:
 
 ```sh
 # Fjern evt. LaunchAgent-variant fra tidligere forsøk
@@ -101,6 +99,9 @@ gandrectl stop       # stopp og last ut
 Tjenesten kjører som din bruker (`UserName` i plisten), ikke root.
 
 ### 6b. LaunchAgent (krever innlogget bruker)
+
+Kjører du som en annen bruker enn `fredrsat`, eller klonet til en annen sti: rett
+stiene i `launchd/no.gandre.server.plist` først.
 
 ```sh
 cp launchd/no.gandre.server.plist ~/Library/LaunchAgents/

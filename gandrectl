@@ -4,7 +4,6 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LABEL="no.gandre.server"
-PLIST_SRC="$DIR/launchd/no.gandre.daemon.plist"
 PLIST_DST="/Library/LaunchDaemons/no.gandre.daemon.plist"
 PORT="$(grep -s '^GANDRE_PORT=' "$DIR/.env" | cut -d= -f2 | tr -d ' ')"
 PORT="${PORT:-3040}"
@@ -22,13 +21,62 @@ health() {
 
 case "${1:-help}" in
   install)
+    NPM_BIN="$(command -v npm)"
+    RUN_USER="$(whoami)"
+    echo "Genererer plist for bruker $RUN_USER, repo $DIR, npm $NPM_BIN…"
+    mkdir -p "$DIR/data/logs"
+    TMP="$(mktemp)"
+    cat > "$TMP" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$NPM_BIN</string>
+    <string>run</string>
+    <string>start</string>
+  </array>
+  <key>UserName</key>
+  <string>$RUN_USER</string>
+  <key>WorkingDirectory</key>
+  <string>$DIR</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>$DIR/data/logs/out.log</string>
+  <key>StandardErrorPath</key>
+  <string>$DIR/data/logs/err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>$(dirname "$NPM_BIN"):/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>$HOME</string>
+  </dict>
+</dict>
+</plist>
+PLIST
+    plutil -lint "$TMP" >/dev/null
     echo "Installerer daemon ($PLIST_DST)…"
-    sudo cp "$PLIST_SRC" "$PLIST_DST"
+    sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
+    sudo cp "$TMP" "$PLIST_DST"
+    rm -f "$TMP"
     sudo chown root:wheel "$PLIST_DST"
     sudo chmod 644 "$PLIST_DST"
     sudo launchctl bootstrap system "$PLIST_DST"
     sleep 3
-    health && echo "Installert og i drift."
+    if health; then
+      echo "Installert og i drift."
+    else
+      echo "Startet ikke — siste linjer fra err.log:"
+      tail -5 "$DIR/data/logs/err.log" 2>/dev/null || echo "(ingen logg ennå)"
+      exit 1
+    fi
     ;;
 
   start)
