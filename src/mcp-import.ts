@@ -10,19 +10,24 @@ export interface McpImportResult {
 
 const FETCH_OPTS = { signal: AbortSignal.timeout(10_000), headers: { 'User-Agent': 'gandre' } };
 
+// null = finnes ikke (404 o.l.). Nettverksfeil kaster — det skal gi en tydelig
+// feilmelding til brukeren, ikke forveksles med «fant ingen konfigurasjon».
 async function fetchText(url: string): Promise<string | null> {
+  let lastErr: unknown;
   // To forsøk: forbigående nettverksfeil (f.eks. en død keep-alive-tilkobling) skal ikke velte importen
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const res = await fetch(url, FETCH_OPTS);
       return res.ok ? await res.text() : null;
     } catch (err) {
-      if (attempt === 2) {
-        console.error(`[mcp-import] klarte ikke hente ${url}:`, err instanceof Error ? err.message : err);
-      }
+      lastErr = err;
     }
   }
-  return null;
+  const reason = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  console.error(`[mcp-import] klarte ikke hente ${url}: ${reason}`);
+  throw new Error(
+    `Fikk ikke kontakt med ${new URL(url).host} (${reason}) — sjekk nettverket fra serveren og prøv igjen.`
+  );
 }
 
 async function fetchJson(url: string): Promise<Record<string, unknown> | null> {
