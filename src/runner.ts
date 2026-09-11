@@ -72,7 +72,13 @@ export async function executeRun(
       step_count: result.steps.length,
     });
     console.log(`[runner] ${agent.name}: kjøring #${runId} ferdig (${result.steps.length} steg)`);
-    await notifyRunFinished(agent, runId, true, result.text);
+    // [STILLE]-konvensjonen: starter sluttsvaret slik, droppes push-varselet
+    // (kjøringen logges som vanlig). Feil varsles alltid.
+    if (result.text.trimStart().startsWith('[STILLE]')) {
+      console.log(`[runner] ${agent.name}: [STILLE] — hopper over ntfy-varsel`);
+    } else {
+      await notifyRunFinished(agent, runId, true, result.text);
+    }
   } catch (err) {
     const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
     finishRun(runId, { status: 'error', error: message });

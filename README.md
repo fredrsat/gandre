@@ -75,6 +75,10 @@ ugjettbart, f.eks. `gandre-<tilfeldig-streng>`. `GANDRE_PUBLIC_URL` styrer hvor 
 klikk-lenke peker. Hver agent kan overstyre url/topic/token i sitt eget skjema, så ulike
 agenter kan varsle til ulike topics.
 
+**Varsle kun ved avvik:** begynner agentens sluttsvar med `[STILLE]`, droppes
+push-varselet for den kjøringen (kjøringen logges som vanlig, og feil varsles alltid).
+Styr det fra prompten: «Er alt som normalt, begynn sluttsvaret med [STILLE]».
+
 ## Kjør som tjeneste (launchd)
 
 ```sh
