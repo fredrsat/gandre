@@ -66,7 +66,9 @@ function findServerInJson(value: unknown, keyHint?: string): StdioCandidate | nu
 }
 
 function findServerInReadme(readme: string): StdioCandidate | null {
-  const blocks = [...readme.matchAll(/```(?:json[c5]?|jsonc)?\s*\n([\s\S]*?)```/g)].map((m) => m[1]);
+  // Linjeankret parvis matching av ```-fencer — ellers kommer parseren ut av takt
+  // når blokker med andre språk (```sh o.l.) ligger foran JSON-blokken
+  const blocks = [...readme.matchAll(/^[ \t]*```[^\n]*\n([\s\S]*?)^[ \t]*```[ \t]*$/gm)].map((m) => m[1]);
   const candidates: StdioCandidate[] = [];
   for (const block of blocks) {
     if (!block.includes('"command"')) continue;
