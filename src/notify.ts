@@ -6,11 +6,13 @@ export async function notifyRunFinished(
   runId: number,
   ok: boolean,
   summary: string,
-  topicOverride?: string
+  topicSuffix?: string
 ): Promise<void> {
-  // Topic: [TOPIC:…]-markør fra sluttsvaret > agentens felt > .env
+  // ntfy-topics er et globalt navnerom — basetopicet (agent/.env) er hemmeligheten.
+  // [TOPIC:x]-markøren legges derfor på som suffiks: <base>-<x>, aldri alene.
   const url = agent.ntfy_url || config.ntfyUrl;
-  const topic = topicOverride || agent.ntfy_topic || config.ntfyTopic;
+  const base = agent.ntfy_topic || config.ntfyTopic;
+  const topic = base && topicSuffix ? `${base}-${topicSuffix}` : base;
   const token = agent.ntfy_token || config.ntfyToken;
   if (!topic) return;
   // Tittel m.m. som query-parametre: HTTP-headere tåler ikke UTF-8 (æøå i agentnavn)

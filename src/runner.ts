@@ -86,8 +86,8 @@ export async function executeRun(
     // [STILLE]-konvensjonen: starter sluttsvaret slik, droppes push-varselet
     // (kjøringen logges som vanlig). Feil varsles alltid.
     // Markører først i sluttsvaret, i valgfri rekkefølge:
-    //   [STILLE]       — ingen push (kjøringen logges som vanlig)
-    //   [TOPIC:navn]   — rut pushen til et annet ntfy-topic (url/token som ellers)
+    //   [STILLE]         — ingen push (kjøringen logges som vanlig)
+    //   [TOPIC:suffiks]  — push til <basetopic>-<suffiks> (basetopicet er hemmeligheten)
     let message = finalText;
     let silent = false;
     let topicOverride: string | undefined;
