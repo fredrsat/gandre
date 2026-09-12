@@ -1,55 +1,75 @@
 # gandre
 
-Enkel, selvhostet agent-plattform for Mac mini. Sett opp agenter med kjøremønster (cron),
-modell (Claude, OpenRouter eller lokal Ollama), prompt, datagrunnlag (arbeidsmappe) og
-MCP-verktøy — administrert via et web-dashboard på LAN. Hver kjøring logges med fullt
-transkript, og ntfy sender push-varsel når en kjøring er ferdig eller feiler.
+**Selvhostet agent-plattform for hjemmeserveren.** Sett opp AI-agenter som kjører på
+tidsplan — værvarsel om morgenen, «er bussen i rute?» før avgang, prisvakt på
+favorittvarene — administrert fra et enkelt web-dashboard, med push-varsling til mobilen
+kun når noe faktisk krever oppmerksomhet.
+
+Bygget for én Mac mini og én bruker: én Node-prosess, SQLite, server-rendret HTML uten
+byggsteg, og ingenting i skyen du ikke velger selv.
+
+## Funksjoner
+
+- **Fritt modellvalg per agent** — Anthropic (Claude), OpenRouter, eller lokal modell via
+  Ollama. API-nøkler i `.env` eller per agent.
+- **Grafisk kjøremønster** — manuell, hver time, daglig (alle dager/hverdager/helg),
+  ukentlig med dagvalg, månedlig, eller rått cron-uttrykk for spesialtilfeller.
+- **MCP-verktøy** — koble agentene til hva som helst som snakker
+  [Model Context Protocol](https://modelcontextprotocol.io) (stdio, HTTP eller SSE).
+  Serverne registreres én gang, testes med ett klikk, og krysses av per agent.
+  Lim inn en GitHub-URL eller et npm-pakkenavn, så utledes oppsettet automatisk.
+- **Minne mellom kjøringer** — hver agent har en `memory.md` som sendes med i prompten
+  og som agenten oppdaterer selv. En daglig agent vet hva den meldte i går.
+- **Varsling via [ntfy](https://ntfy.sh)** — push ved fullført kjøring eller feil.
+  Starter agentens sluttsvar med `[STILLE]`, droppes pushen — «varsle kun ved avvik»
+  styres rett fra prompten.
+- **Full sporbarhet** — hver kjøring lagres med komplett transkript (alle verktøykall
+  med argumenter og svar), tokens og estimert kostnad per agent.
+- **Robust drift** — planlagte kjøringer får automatisk nye forsøk ved feil,
+  overlappende kjøringer hoppes over, og krasj merkes ærlig i historikken.
+  Kjører som LaunchDaemon på macOS, styrt med det medfølgende `gandrectl`-skriptet.
 
 ## Kom i gang
 
-Krever Node 22+ (native `--env-file`, og `ai`-pakken er ESM-only).
-
 ```sh
+git clone https://github.com/fredrsat/gandre.git
+cd gandre
 npm install
-cp .env.example .env     # fyll inn API-nøkler og evt. ntfy-topic
-npm run start            # web-UI på http://localhost:3040
+cp .env.example .env    # fyll inn API-nøkler og evt. ntfy-topic
+npm run start           # dashboard på http://localhost:3040
 ```
 
-Åpne dashboardet, trykk «+ Ny agent», og fyll inn:
+Full oppskrift for varig drift på en (headless) Mac mini — LaunchDaemon, `gandrectl`,
+energiinnstillinger og feilsøking: **[INSTALL.md](INSTALL.md)**.
+
+## Slik virker det
+
+En **agent** er en konfigurasjon:
 
 | Felt | Betydning |
 |---|---|
-| Kjøremønster | Grafisk valg: kun manuell, hver time, daglig, ukentlig (velg dager) eller månedlig — eller egendefinert cron-uttrykk. Tidssone `GANDRE_TZ`. |
+| Kjøremønster | Grafisk valg: manuell, hver time, daglig (alle/hverdager/helg), ukentlig eller månedlig — eller egendefinert cron. Tidssone `GANDRE_TZ`. |
 | Leverandør/modell | `anthropic` (claude-opus-5 …), `openrouter` (anthropic/claude-sonnet-5 …), `ollama` (qwen3.5:9b …) |
 | System-prompt | Rolle og faste instruksjoner |
 | Oppgave-prompt | Selve oppgaven som kjøres hver gang |
-| Arbeidsmappe | Datagrunnlaget: agenten kan lese filer her med `list_files`/`read_file`, og skrive med `write_file` hvis tillatt. Tomt felt = egen mappe under `data/agents/`. |
-| MCP-servere | Kryss av hvilke servere fra MCP-registeret agenten får bruke |
-| Maks steg | Øvre grense for modell-runder per kjøring. Ett steg = én forespørsel til modellen; hver runde med verktøybruk koster ett steg. Grensen stopper agenter som går i loop. |
-| Overstyringer | Valgfritt per agent: API-nøkkel, base-URL (ollama) og ntfy-url/-topic/-token. Tomme felter faller tilbake til verdiene i `.env`. |
+| Arbeidsmappe | Datagrunnlaget: agenten leser filer med `list_files`/`read_file`, og skriver med `write_file` hvis tillatt. Minnet (`memory.md`) bor her. |
+| MCP-servere | Kryss av hvilke servere fra registeret agenten får bruke |
+| Maks steg | Ett steg = én runde mot modellen; verktøybruk koster ett steg per runde. Nødbrems mot løpske agenter. |
+| Overstyringer | Valgfritt per agent: API-nøkkel, base-URL (ollama), ntfy-url/-topic/-token. Tomt = verdiene fra `.env`. |
 
-Kjør en agent fra terminalen: `npm run once -- <agentnavn>`.
-
-### Minne mellom kjøringer
-
-Hver agent har et vedvarende minne i `memory.md` i arbeidsmappen. Innholdet (maks 20 KB)
-sendes automatisk med i prompten ved hver kjøring, og agenten oppdaterer det selv med
-`save_memory`-verktøyet — slik vet en daglig agent hva den allerede har rapportert.
-Minnet vises på agentsiden i UI-et og kan redigeres direkte i filen ved behov.
-Tips: små lokalmodeller kan trenge eksplisitt beskjed i prompten om å bruke `save_memory`.
+Ved hvert kjøretidspunkt starter plattformen en modell-løkke med agentens verktøy
+(filverktøy + `save_memory` + valgte MCP-servere), lagrer transkriptet, og pusher
+sluttsvaret til ntfy — med mindre det starter med `[STILLE]`.
 
 ### MCP-registeret
 
-Siden **MCP** i menyen viser alle verktøyservere plattformen kjenner til, med status
-(«Test»-knappen kobler til serveren og lister verktøyene den tilbyr) og hvilke agenter som
-bruker hver server. Serverne defineres én gang i registeret og krysses av per agent.
+Siden **MCP** viser alle verktøyservere plattformen kjenner, med status («Test»-knappen
+kobler til og lister verktøyene) og hvilke agenter som bruker hver server.
 
-**Hent oppsett automatisk:** lim inn en GitHub-URL (også undermapper i monorepo, f.eks.
-`github.com/modelcontextprotocol/servers/tree/main/src/memory`) eller et npm-pakkenavn i
-feltet på MCP-siden. Plattformen leser README/package.json, utleder konfigurasjonen
-(npx/uvx-oppsett foretrekkes fremfor docker) og forhåndsutfyller skjemaet — ingenting
-installeres eller kjøres før du selv lagrer og trykker Test. Env-plassholdere (API-nøkler
-o.l.) påpekes så du kan fylle dem inn.
+**Hent oppsett automatisk:** lim inn en GitHub-URL (også undermapper i monorepoer) eller
+et npm-pakkenavn. Plattformen leser README/package.json, utleder konfigurasjonen
+(npx/uvx foretrekkes fremfor docker), advarer om plassholder-stier og env-nøkler som må
+fylles inn, og forhåndsutfyller skjemaet. Ingenting installeres før du lagrer og tester.
 
 Konfigurasjonen per server er JSON:
 
@@ -63,56 +83,64 @@ Konfigurasjonen per server er JSON:
   "headers": { "Authorization": "Bearer …" } }
 ```
 
-`transport` er `stdio` (lokal kommando), `http` eller `sse` (ekstern server).
-Merk: en stdio-server kjører som din bruker — å konfigurere en er i praksis det samme som
-shell-tilgang. Greit på en én-brukers hjemmeserver, men ikke gi andre tilgang til UI-et.
+Tips til norske hjemmeservere: [yr-mcp](https://github.com/fredrsat/yr-mcp) (værdata fra
+Yr/MET) og [ruter-connector](https://github.com/fredrsat/ruter-connector) (sanntid for
+norsk kollektivtrafikk via Entur) er bygget for akkurat denne plattformen.
 
-### Varsling (ntfy)
+### Varsling
 
-Sett `NTFY_TOPIC` i `.env` (og evt. `NTFY_URL` for selvhostet server, `NTFY_TOKEN` for auth).
-Abonner på topicet i ntfy-appen på mobilen. Topicnavnet er «passordet» på ntfy.sh — velg noe
-ugjettbart, f.eks. `gandre-<tilfeldig-streng>`. `GANDRE_PUBLIC_URL` styrer hvor varselets
-klikk-lenke peker. Hver agent kan overstyre url/topic/token i sitt eget skjema, så ulike
-agenter kan varsle til ulike topics.
+Sett `NTFY_TOPIC` i `.env` (topicnavnet er «passordet» på ntfy.sh — velg noe ugjettbart)
+og abonner i ntfy-appen. `GANDRE_PUBLIC_URL` gjør varselet klikkbart rett inn til
+kjøringen — bruk serverens Tailscale-navn så lenken virker overalt, eller la den stå tom
+for ingen lenke. Hver agent kan overstyre url/topic/token og varsle til egne topics.
 
-**Varsle kun ved avvik:** begynner agentens sluttsvar med `[STILLE]`, droppes
-push-varselet for den kjøringen (kjøringen logges som vanlig, og feil varsles alltid).
-Styr det fra prompten: «Er alt som normalt, begynn sluttsvaret med [STILLE]».
+**Varsle kun ved avvik:** be agenten i prompten begynne sluttsvaret med `[STILLE]` når
+alt er normalt — da logges kjøringen som vanlig, men ingen push sendes. Feil varsles
+alltid.
 
-## Kjør som tjeneste (launchd)
+### Minne
 
-```sh
-cp launchd/no.gandre.server.plist ~/Library/LaunchAgents/
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/no.gandre.server.plist
-```
-
-Logger havner i `data/logs/out.log` og `err.log`. Stopp med
-`launchctl bootout gui/$(id -u)/no.gandre.server`.
-
-På en headless Mac mini: en LaunchAgent kjører bare når brukeren er innlogget — skru på
-automatisk innlogging (Systeminnstillinger → Brukere), og hindre at maskinen sover
-(Strømsparing, eller `caffeinate`). Cron-tidspunkter som passerer mens maskinen er av/sover
-kjøres ikke i etterkant — de hoppes over.
-
-`better-sqlite3` er en native modul: bytter du Node-versjon, kjør `npm rebuild better-sqlite3`.
-
-## Sikkerhet
-
-- UI-et er tenkt for LAN/Tailscale. **Aldri port-forward det ut på internett.**
-- Sett `GANDRE_USER`/`GANDRE_PASS` i `.env` for basic auth — anbefalt, siden agenter kan
-  skrive filer og MCP-servere kjører vilkårlige kommandoer.
-- `GANDRE_BIND=127.0.0.1` begrenser til lokal maskin (f.eks. bak Tailscale serve).
-- Filverktøyene er låst til agentens arbeidsmappe (inkl. symlink-sjekk); MCP-servere er det ikke.
-- Per-agent API-nøkler og ntfy-tokens lagres i klartekst i `data/gandre.db` — ikke del
-  databasefilen, og bruk helst `.env` for nøkler som gjelder alle agenter.
-- CSRF-beskyttelse er bevisst utelatt (én bruker, LAN, basic auth).
+`memory.md` i arbeidsmappen (maks 20 KB) sendes automatisk med i prompten, og agenten
+oppdaterer det med `save_memory`-verktøyet. Vises og kan inspiseres på agentsiden.
+Tips: små lokalmodeller trenger gjerne eksplisitt beskjed i prompten om å bruke
+`save_memory` — større modeller gjør det av seg selv.
 
 ## Drift
 
-- Kjøringer eldre enn 90 dager slettes automatisk ved oppstart.
-- En kjøring avbrytes hardt etter `GANDRE_RUN_TIMEOUT_MIN` (standard 30 min).
-- Samme agent kjører aldri to ganger samtidig — kolliderende starter hoppes over.
-- Feiler en planlagt kjøring, prøves den automatisk på nytt inntil 2 ganger (60 s mellomrom);
-  feilvarsel sendes først når siste forsøk har feilet. Alle forsøk vises i historikken.
-  Manuelle kjøringer prøves ikke på nytt — der ser du feilen med en gang.
-- Krasjer prosessen midt i en kjøring, merkes den som `interrupted` ved neste oppstart.
+- `gandrectl` styrer tjenesten: `install`, `start`, `stop`, `restart`, `status`, `logs`,
+  `update` (git pull + npm install + restart). `install` genererer launchd-plisten for
+  gjeldende bruker og sti automatisk.
+- Feiler en planlagt kjøring, prøves den på nytt inntil 2 ganger (60 s mellomrom);
+  feilvarsel sendes først når siste forsøk har feilet. Manuelle kjøringer prøves ikke
+  på nytt.
+- Samme agent kjører aldri to ganger samtidig. Krasjer prosessen midt i en kjøring,
+  merkes den som `interrupted` ved neste oppstart. Kjøringer avbrytes hardt etter
+  `GANDRE_RUN_TIMEOUT_MIN` (standard 30 min).
+- Kjøringer eldre enn 90 dager slettes automatisk.
+- Statistikk per agent (kjøringer, tokens, estimert kostnad siste 30 dager og totalt)
+  vises på agentsiden.
+
+## Sikkerhet
+
+Bygget for én bruker på eget LAN — vurder selv før du utvider:
+
+- **Aldri port-forward** UI-et ut på internett. Bruk LAN eller Tailscale.
+- Sett `GANDRE_USER`/`GANDRE_PASS` i `.env` for basic auth — anbefalt, siden agenter kan
+  skrive filer og MCP-servere kjører vilkårlige kommandoer. `/healthz` er unntatt.
+- `GANDRE_BIND=127.0.0.1` begrenser til lokal maskin (f.eks. bak Tailscale serve).
+- Filverktøyene er låst til agentens arbeidsmappe (inkl. symlink-sjekk); MCP-servere er
+  det ikke — en stdio-server kjører som din bruker, så å konfigurere en er i praksis
+  shell-tilgang.
+- Per-agent API-nøkler og ntfy-tokens lagres i klartekst i `data/gandre.db` — ikke del
+  databasefilen; bruk helst `.env` for nøkler som gjelder alle agenter.
+- CSRF-beskyttelse er bevisst utelatt (én bruker, LAN, basic auth).
+
+## Teknologi
+
+Node 22+ · TypeScript (kjørt direkte med tsx, ingen byggsteg) ·
+[Vercel AI SDK](https://ai-sdk.dev) med `@ai-sdk/mcp` · better-sqlite3 · croner ·
+Hono med server-rendret HTML.
+
+## Lisens
+
+[MIT](LICENSE) © Fredrik Sætre

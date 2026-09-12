@@ -11,15 +11,15 @@
     <string>start</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/Users/fredrsat/Code/gandre</string>
+  <string>/Users/BRUKERNAVN/Code/gandre</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/Users/fredrsat/Code/gandre/data/logs/out.log</string>
+  <string>/Users/BRUKERNAVN/Code/gandre/data/logs/out.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/fredrsat/Code/gandre/data/logs/err.log</string>
+  <string>/Users/BRUKERNAVN/Code/gandre/data/logs/err.log</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
