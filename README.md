@@ -98,14 +98,16 @@ for ingen lenke. Hver agent kan overstyre url/topic/token og varsle til egne top
 alt er normalt — da logges kjøringen som vanlig, men ingen push sendes. Feil varsles
 alltid.
 
-**Rut til ulike topics fra prompten:** starter sluttsvaret med `[TOPIC:suffiks]`, sendes
-pushen til `<NTFY_TOPIC>-<suffiks>` — f.eks. blir `[TOPIC:skole]` med
-`NTFY_TOPIC=3b901a74-…` til `3b901a74-…-skole`. Suffikset bygger alltid på basetopicet
-fra `.env` (den felles, hemmelige app-id-en), aldri på agentens eget topic-felt — det
-gjelder kun umarkerte meldinger. ntfy-topics er et globalt navnerom, så suffikset legges
-alltid på og erstatter aldri. Markørene kan kombineres i valgfri rekkefølge; `[STILLE]`
-vinner. Nyttig når mottaker-appen grupperer på topic — én agent kan rute ulike
-meldingstyper til ulike grupper.
+**Rut til ulike topics fra prompten:** `[TOPIC:suffiks]` i sluttsvaret starter en
+seksjon som pushes til `<NTFY_TOPIC>-<suffiks>` — f.eks. gir `[TOPIC:skole]` med
+`NTFY_TOPIC=3b901a74-…` topicet `3b901a74-…-skole`. **Flere markører gir flere push**,
+én per seksjon — slik kan én agent sende barnemeldingen til `…-skole-b` og
+forelderdelen til `…-skole-f` i samme kjøring. Tekst før første markør (eller svar helt
+uten markør) går til agentens/`.env` sitt vanlige topic. Suffikset bygger alltid på
+basetopicet fra `.env` (den felles, hemmelige app-id-en) — ntfy-topics er et globalt
+navnerom, så suffikset legges alltid på og erstatter aldri. `[STILLE]` først i svaret
+dropper alle push. Hver seksjon kuttes til ~300 tegn i pushen; alt lagres i
+kjøringsloggen.
 
 ### Minne
 

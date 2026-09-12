@@ -85,30 +85,31 @@ export async function executeRun(
     console.log(`[runner] ${agent.name}: kjøring #${runId} ferdig (${result.steps.length} steg)`);
     // [STILLE]-konvensjonen: starter sluttsvaret slik, droppes push-varselet
     // (kjøringen logges som vanlig). Feil varsles alltid.
-    // Markører først i sluttsvaret, i valgfri rekkefølge:
-    //   [STILLE]         — ingen push (kjøringen logges som vanlig)
-    //   [TOPIC:suffiks]  — push til <basetopic>-<suffiks> (basetopicet er hemmeligheten)
+    // Markører i sluttsvaret:
+    //   [STILLE] først        — ingen push i det hele tatt (kjøringen logges)
+    //   [TOPIC:suffiks]       — starter en seksjon som pushes til <NTFY_TOPIC>-<suffiks>.
+    //                           Flere markører = flere push, én per seksjon.
     let message = finalText;
     let silent = false;
-    let topicOverride: string | undefined;
-    for (;;) {
-      if (message.startsWith('[STILLE]')) {
-        silent = true;
-        message = message.slice('[STILLE]'.length).trimStart();
-        continue;
-      }
-      const m = message.match(/^\[TOPIC:([A-Za-z0-9_-]{1,64})\]\s*/);
-      if (m) {
-        topicOverride = m[1];
-        message = message.slice(m[0].length);
-        continue;
-      }
-      break;
+    if (message.startsWith('[STILLE]')) {
+      silent = true;
+      message = message.slice('[STILLE]'.length).trimStart();
     }
     if (silent) {
       console.log(`[runner] ${agent.name}: [STILLE] — hopper over ntfy-varsel`);
     } else {
-      await notifyRunFinished(agent, runId, true, message, topicOverride);
+      // Del opp i seksjoner per [TOPIC:x]-markør; tekst før første markør går til standard-topicet
+      const parts = message.split(/\[TOPIC:([A-Za-z0-9_-]{1,64})\]/);
+      const segments: { suffix?: string; text: string }[] = [];
+      if (parts[0].trim()) segments.push({ text: parts[0].trim() });
+      for (let i = 1; i < parts.length; i += 2) {
+        const text = (parts[i + 1] ?? '').trim();
+        if (text) segments.push({ suffix: parts[i], text });
+      }
+      if (segments.length === 0) segments.push({ text: message.trim() });
+      for (const seg of segments) {
+        await notifyRunFinished(agent, runId, true, seg.text, seg.suffix);
+      }
     }
   } catch (err) {
     const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
