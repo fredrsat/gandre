@@ -64,9 +64,20 @@ export async function executeRun(
       abortSignal: AbortSignal.timeout(config.runTimeoutMs),
     });
 
+    // Småmodeller skriver av og til svaret, kaller så et verktøy, og avslutter
+    // med bare «ferdig»/«ok». Da er den ekte meldingen i et tidligere steg —
+    // bruk siste substansielle tekst i stedet for det trivielle sluttsvaret.
+    let finalText = result.text.trim();
+    if (finalText.length < 20) {
+      const substantial = result.steps
+        .map((s) => s.text?.trim() ?? '')
+        .filter((t) => t.length >= 20);
+      if (substantial.length > 0) finalText = substantial[substantial.length - 1];
+    }
+
     finishRun(runId, {
       status: 'success',
-      final_text: result.text,
+      final_text: finalText,
       transcript_json: JSON.stringify(result.responseMessages),
       usage_json: JSON.stringify(result.usage),
       step_count: result.steps.length,
@@ -74,10 +85,10 @@ export async function executeRun(
     console.log(`[runner] ${agent.name}: kjøring #${runId} ferdig (${result.steps.length} steg)`);
     // [STILLE]-konvensjonen: starter sluttsvaret slik, droppes push-varselet
     // (kjøringen logges som vanlig). Feil varsles alltid.
-    if (result.text.trimStart().startsWith('[STILLE]')) {
+    if (finalText.startsWith('[STILLE]')) {
       console.log(`[runner] ${agent.name}: [STILLE] — hopper over ntfy-varsel`);
     } else {
-      await notifyRunFinished(agent, runId, true, result.text);
+      await notifyRunFinished(agent, runId, true, finalText);
     }
   } catch (err) {
     const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
