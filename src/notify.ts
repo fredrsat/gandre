@@ -5,11 +5,12 @@ export async function notifyRunFinished(
   agent: Agent,
   runId: number,
   ok: boolean,
-  summary: string
+  summary: string,
+  topicOverride?: string
 ): Promise<void> {
-  // Per-agent overstyring med fallback til .env
+  // Topic: [TOPIC:…]-markør fra sluttsvaret > agentens felt > .env
   const url = agent.ntfy_url || config.ntfyUrl;
-  const topic = agent.ntfy_topic || config.ntfyTopic;
+  const topic = topicOverride || agent.ntfy_topic || config.ntfyTopic;
   const token = agent.ntfy_token || config.ntfyToken;
   if (!topic) return;
   // Tittel m.m. som query-parametre: HTTP-headere tåler ikke UTF-8 (æøå i agentnavn)

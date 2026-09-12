@@ -85,10 +85,30 @@ export async function executeRun(
     console.log(`[runner] ${agent.name}: kjøring #${runId} ferdig (${result.steps.length} steg)`);
     // [STILLE]-konvensjonen: starter sluttsvaret slik, droppes push-varselet
     // (kjøringen logges som vanlig). Feil varsles alltid.
-    if (finalText.startsWith('[STILLE]')) {
+    // Markører først i sluttsvaret, i valgfri rekkefølge:
+    //   [STILLE]       — ingen push (kjøringen logges som vanlig)
+    //   [TOPIC:navn]   — rut pushen til et annet ntfy-topic (url/token som ellers)
+    let message = finalText;
+    let silent = false;
+    let topicOverride: string | undefined;
+    for (;;) {
+      if (message.startsWith('[STILLE]')) {
+        silent = true;
+        message = message.slice('[STILLE]'.length).trimStart();
+        continue;
+      }
+      const m = message.match(/^\[TOPIC:([A-Za-z0-9_-]{1,64})\]\s*/);
+      if (m) {
+        topicOverride = m[1];
+        message = message.slice(m[0].length);
+        continue;
+      }
+      break;
+    }
+    if (silent) {
       console.log(`[runner] ${agent.name}: [STILLE] — hopper over ntfy-varsel`);
     } else {
-      await notifyRunFinished(agent, runId, true, finalText);
+      await notifyRunFinished(agent, runId, true, message, topicOverride);
     }
   } catch (err) {
     const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
