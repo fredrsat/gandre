@@ -62,6 +62,13 @@ export async function executeRun(
       tools,
       stopWhen: stepCountIs(agent.max_steps),
       abortSignal: AbortSignal.timeout(config.runTimeoutMs),
+      // Prompt-caching (Anthropic): auto-cache siste blokk per steg, slik at
+      // system-prompt, verktøyliste og historikk gjenbrukes billig gjennom
+      // flerstegs kjøringer (cache-les koster ~10 % av full pris)
+      providerOptions:
+        agent.provider === 'anthropic'
+          ? { anthropic: { cacheControl: { type: 'ephemeral' } } }
+          : undefined,
     });
 
     // Småmodeller skriver av og til svaret, kaller så et verktøy, og avslutter
@@ -82,7 +89,12 @@ export async function executeRun(
       usage_json: JSON.stringify(result.usage),
       step_count: result.steps.length,
     });
-    console.log(`[runner] ${agent.name}: kjøring #${runId} ferdig (${result.steps.length} steg)`);
+    const cached = result.usage.inputTokenDetails.cacheReadTokens ?? 0;
+    console.log(
+      `[runner] ${agent.name}: kjøring #${runId} ferdig (${result.steps.length} steg, ` +
+      `${result.usage.inputTokens ?? 0} inn / ${result.usage.outputTokens ?? 0} ut` +
+      (cached > 0 ? `, ${cached} fra cache` : '') + ')'
+    );
     // [STILLE]-konvensjonen: starter sluttsvaret slik, droppes push-varselet
     // (kjøringen logges som vanlig). Feil varsles alltid.
     // Markører i sluttsvaret:
