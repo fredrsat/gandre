@@ -8,11 +8,21 @@ export async function notifyRunFinished(
   summary: string,
   topicSuffix?: string
 ): Promise<void> {
-  // ntfy-topics er et globalt navnerom — basetopicet (agent/.env) er hemmeligheten.
-  // [TOPIC:x]-markøren legges derfor på som suffiks: <base>-<x>, aldri alene.
+  // ntfy-topics er et globalt navnerom — basetopicet er hemmeligheten, og
+  // [TOPIC:x] legges alltid på som suffiks, aldri alene. Suffikset bygger på
+  // NTFY_TOPIC fra .env (felles app-id); agentens eget topic-felt gjelder
+  // kun umarkerte meldinger.
   const url = agent.ntfy_url || config.ntfyUrl;
-  const base = agent.ntfy_topic || config.ntfyTopic;
-  const topic = base && topicSuffix ? `${base}-${topicSuffix}` : base;
+  let topic: string | undefined;
+  if (topicSuffix) {
+    if (!config.ntfyTopic) {
+      console.warn(`[notify] [TOPIC:${topicSuffix}] ignorert — NTFY_TOPIC er ikke satt i .env`);
+      return;
+    }
+    topic = `${config.ntfyTopic}-${topicSuffix}`;
+  } else {
+    topic = agent.ntfy_topic || config.ntfyTopic;
+  }
   const token = agent.ntfy_token || config.ntfyToken;
   if (!topic) return;
   // Tittel m.m. som query-parametre: HTTP-headere tåler ikke UTF-8 (æøå i agentnavn)

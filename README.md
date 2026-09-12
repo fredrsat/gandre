@@ -99,12 +99,13 @@ alt er normalt — da logges kjøringen som vanlig, men ingen push sendes. Feil 
 alltid.
 
 **Rut til ulike topics fra prompten:** starter sluttsvaret med `[TOPIC:suffiks]`, sendes
-pushen til `<basetopic>-<suffiks>` — f.eks. blir `[TOPIC:skole]` med basetopic
-`3b901a74-…` til `3b901a74-…-skole`. Basetopicet (agentens felt eller `.env`) forblir
-hemmeligheten; ntfy-topics er et globalt navnerom, så suffikset legges alltid på og
-erstatter aldri. Markørene kan kombineres i valgfri rekkefølge; `[STILLE]` vinner.
-Nyttig når mottaker-appen grupperer på topic — én agent kan rute ulike meldingstyper
-til ulike grupper.
+pushen til `<NTFY_TOPIC>-<suffiks>` — f.eks. blir `[TOPIC:skole]` med
+`NTFY_TOPIC=3b901a74-…` til `3b901a74-…-skole`. Suffikset bygger alltid på basetopicet
+fra `.env` (den felles, hemmelige app-id-en), aldri på agentens eget topic-felt — det
+gjelder kun umarkerte meldinger. ntfy-topics er et globalt navnerom, så suffikset legges
+alltid på og erstatter aldri. Markørene kan kombineres i valgfri rekkefølge; `[STILLE]`
+vinner. Nyttig når mottaker-appen grupperer på topic — én agent kan rute ulike
+meldingstyper til ulike grupper.
 
 ### Minne
 
