@@ -12,9 +12,8 @@ Fra null til kjørende tjeneste. Alt gjøres i Terminal på maskinen som skal v�
 brew install node
 ```
 
-Repoet er privat og hentes over SSH — kopier den eksisterende GitHub-nøkkelen til
-maskinen (eller legg til en ny på github.com → Settings → SSH keys), og sjekk at den
-virker:
+Repoet er offentlig og hentes over HTTPS. Skal maskinen også pushe endringer, sett
+opp en SSH-nøkkel (github.com → Settings → SSH keys) og sjekk at den virker:
 
 ```sh
 ssh -T git@github.com     # skal svare «Hi fredrsat! …»
@@ -32,7 +31,7 @@ ollama pull qwen3.5:9b              # en modell som kan bruke verktøy
 
 ```sh
 mkdir -p ~/Code && cd ~/Code
-git clone git@github.com:fredrsat/gandre.git
+git clone https://github.com/fredrsat/gandre.git
 cd gandre
 npm install
 ```

@@ -1,4 +1,8 @@
 {
+  "name": "gandre",
+  "description": "Selvhostet AI-agent-plattform for hjemmeserveren — cron-agenter med MCP-verktøy, minne mellom kjøringer og ntfy-varsling",
+  "author": "Fredrik Sætre",
+  "license": "MIT",
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.52",
     "@ai-sdk/mcp": "^2.0.48",
