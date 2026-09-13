@@ -1,0 +1,39 @@
+# gandre
+
+> Selvhostet AI-agent-plattform for hjemmeserveren: cron-planlagte agenter med MCP-verktøy, minne mellom kjøringer og push-varsling via ntfy, administrert fra et web-dashboard.
+
+Bygget for én Mac mini og én bruker: én Node-prosess (Node 22+, TypeScript kjørt
+direkte med tsx), SQLite via better-sqlite3, Hono med server-rendret HTML uten
+byggsteg, og Vercel AI SDK med `@ai-sdk/mcp` for modell-løkken. Modellvalg per agent:
+Anthropic, OpenRouter eller lokal Ollama.
+
+Sentrale konsepter: en agent er en konfigurasjon (kjøremønster, modell, prompts,
+arbeidsmappe, MCP-servere, maks steg). `memory.md` i arbeidsmappen gir minne mellom
+kjøringer. Sluttsvar pushes til ntfy; `[STILLE]` demper push, `[TOPIC:suffiks]` ruter
+seksjoner til egne topics. Alle kjøringer lagres med fullt transkript, tokens og
+kostnadsestimat.
+
+## Dokumentasjon
+
+- [README.md](https://github.com/fredrsat/gandre/blob/main/README.md): funksjoner, oppsett, agentmodellen, varsling, minne, drift og sikkerhet
+- [INSTALL.md](https://github.com/fredrsat/gandre/blob/main/INSTALL.md): varig drift på headless Mac mini — LaunchDaemon, gandrectl, energiinnstillinger, feilsøking
+
+## Kildekode
+
+- [src/index.ts](https://github.com/fredrsat/gandre/blob/main/src/index.ts): oppstart — server, scheduler og database
+- [src/runner.ts](https://github.com/fredrsat/gandre/blob/main/src/runner.ts): modell-løkken — verktøykall, transkript, retry og timeout
+- [src/scheduler.ts](https://github.com/fredrsat/gandre/blob/main/src/scheduler.ts): cron-planlegging med croner, overlappsvern
+- [src/mcp.ts](https://github.com/fredrsat/gandre/blob/main/src/mcp.ts): MCP-klient (stdio/HTTP/SSE) og verktøyregistrering
+- [src/mcp-import.ts](https://github.com/fredrsat/gandre/blob/main/src/mcp-import.ts): utled MCP-oppsett fra GitHub-URL eller npm-pakkenavn
+- [src/notify.ts](https://github.com/fredrsat/gandre/blob/main/src/notify.ts): ntfy-push, [STILLE]- og [TOPIC:x]-håndtering
+- [src/providers.ts](https://github.com/fredrsat/gandre/blob/main/src/providers.ts): Anthropic/OpenRouter/Ollama-oppsett og prompt-caching
+- [src/db.ts](https://github.com/fredrsat/gandre/blob/main/src/db.ts): SQLite-skjema og spørringer
+- [src/web/server.ts](https://github.com/fredrsat/gandre/blob/main/src/web/server.ts): Hono-ruter for dashboardet
+- [src/web/pages.ts](https://github.com/fredrsat/gandre/blob/main/src/web/pages.ts): server-rendret HTML for alle sider
+
+## Valgfritt
+
+- [src/tools/fs-tools.ts](https://github.com/fredrsat/gandre/blob/main/src/tools/fs-tools.ts): filverktøy låst til agentens arbeidsmappe
+- [src/pricing.ts](https://github.com/fredrsat/gandre/blob/main/src/pricing.ts): kostnadsestimat per modell
+- [gandrectl](https://github.com/fredrsat/gandre/blob/main/gandrectl): driftsskript — install/start/stop/status/logs/update
+- [.env.example](https://github.com/fredrsat/gandre/blob/main/.env.example): alle miljøvariabler med forklaring
