@@ -24,7 +24,10 @@ export async function notifyRunFinished(
     topic = agent.ntfy_topic || config.ntfyTopic;
   }
   const token = agent.ntfy_token || config.ntfyToken;
-  if (!topic) return;
+  if (!topic) {
+    console.warn(`[notify] ${agent.name}: ingen topic (verken på agenten eller NTFY_TOPIC i .env) — hopper over push`);
+    return;
+  }
   // Tittel m.m. som query-parametre: HTTP-headere tåler ikke UTF-8 (æøå i agentnavn)
   const params = new URLSearchParams({
     title: ok ? `✓ ${agent.name}` : `✗ ${agent.name} feilet`,
@@ -36,12 +39,19 @@ export async function notifyRunFinished(
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   try {
-    await fetch(`${url}/${topic}?${params}`, {
+    const res = await fetch(`${url}/${topic}?${params}`, {
       method: 'POST',
       headers,
       body: summary.slice(0, 300) || (ok ? 'Ferdig' : 'Feilet'),
     });
+    if (res.ok) {
+      console.log(`[notify] ${agent.name}: pushet til ${topic}`);
+    } else {
+      // 403 = feil token/beskyttet topic, 429 = rate limit hos ntfy.sh
+      const body = (await res.text().catch(() => '')).slice(0, 200);
+      console.error(`[notify] ${agent.name}: ntfy svarte ${res.status} for topic «${topic}»: ${body}`);
+    }
   } catch (err) {
-    console.error('ntfy-varsling feilet:', err);
+    console.error(`[notify] ${agent.name}: ntfy-varsling feilet:`, err);
   }
 }
