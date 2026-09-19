@@ -29,7 +29,16 @@ export async function executeRun(
   }
   activeAgents.add(agentId);
 
-  const runId = insertRun(agentId, trigger);
+  // Kaster insertRun (full disk, låst/korrupt db) FØR try-blokken under, må
+  // busy-flagget ryddes her — ellers står agenten som «kjører» for alltid og
+  // alle senere kjøringer hoppes stille over.
+  let runId: number;
+  try {
+    runId = insertRun(agentId, trigger);
+  } catch (err) {
+    activeAgents.delete(agentId);
+    throw err;
+  }
   console.log(`[runner] ${agent.name}: starter kjøring #${runId} (${trigger})`);
 
   let mcp: McpConnection | null = null;

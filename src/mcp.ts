@@ -1,3 +1,4 @@
+import { createInterface } from 'node:readline';
 import { createMCPClient, type MCPClient } from '@ai-sdk/mcp';
 import { Experimental_StdioMCPTransport as StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio';
 import type { ToolSet } from 'ai';
@@ -7,14 +8,30 @@ export function parseMcpConfig(json: string): McpConfig {
   return mcpConfigSchema.parse(JSON.parse(json));
 }
 
-async function connectOne(config: McpConfig): Promise<MCPClient> {
-  return createMCPClient({
-    clientName: 'gandre',
-    transport:
-      config.transport === 'stdio'
-        ? new StdioMCPTransport({ command: config.command, args: config.args, env: config.env })
-        : { type: config.transport, url: config.url, headers: config.headers },
+async function connectOne(config: McpConfig, name: string): Promise<MCPClient> {
+  if (config.transport !== 'stdio') {
+    return createMCPClient({
+      clientName: 'gandre',
+      transport: { type: config.transport, url: config.url, headers: config.headers },
+    });
+  }
+  // stderr: 'pipe' i stedet for default 'inherit', så barneprosessens støy
+  // (tracebacks, httpx-logging) får [mcp:navn]- og tidsprefiks i err.log i
+  // stedet for å blandes rått inn på tvers av agenter og dager.
+  const transport = new StdioMCPTransport({
+    command: config.command,
+    args: config.args,
+    env: config.env,
+    stderr: 'pipe',
   });
+  const client = await createMCPClient({ clientName: 'gandre', transport });
+  const child = (transport as unknown as { process?: { stderr?: NodeJS.ReadableStream } }).process;
+  if (child?.stderr) {
+    createInterface({ input: child.stderr }).on('line', (line) =>
+      console.error(`[mcp:${name}] ${line}`)
+    );
+  }
+  return client;
 }
 
 export interface McpConnection {
@@ -27,7 +44,7 @@ export async function connectMcpServers(servers: McpServer[]): Promise<McpConnec
   let tools: ToolSet = {};
   try {
     for (const server of servers) {
-      const client = await connectOne(parseMcpConfig(server.config)).catch((err) => {
+      const client = await connectOne(parseMcpConfig(server.config), server.name).catch((err) => {
         throw new Error(`MCP-server «${server.name}»: ${err instanceof Error ? err.message : err}`);
       });
       clients.push(client);
@@ -53,7 +70,7 @@ export async function testMcpServer(server: McpServer, timeoutMs = 20_000): Prom
   try {
     const result = await Promise.race([
       (async () => {
-        client = await connectOne(parseMcpConfig(server.config));
+        client = await connectOne(parseMcpConfig(server.config), server.name);
         const tools = await client.tools();
         return { ok: true, tools: Object.keys(tools) } satisfies McpTestResult;
       })(),

@@ -20,7 +20,12 @@ export function reloadScheduler(): void {
       const job = new Cron(
         agent.schedule_cron,
         { timezone: config.timezone, protect: true, catch: true },
-        async () => { await executeScheduledRun(agent.id); }
+        async () => {
+          // croner har catch: true og svelger feil stille — logg dem selv
+          await executeScheduledRun(agent.id).catch((err) =>
+            console.error(`[scheduler] ${agent.name}: kjøring feilet utenfor runner:`, err)
+          );
+        }
       );
       jobs.set(agent.id, job);
     } catch (err) {
